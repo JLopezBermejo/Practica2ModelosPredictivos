@@ -1,0 +1,166 @@
+
+
+
+
+Practica Modelos Predictivos: Series Temporales aplicadas al precio de cierre del oro
+
+En esta práctica se intentará predecir el precio de cierre del oro de los siguientes días. Para ello hemos recogido en un archivo llamado datosOro.csv los datos del oro por días, desde 2003 hasta el último trimestre de 2023. Los datos han sido extraidos directamente del FOREX, mercado de divisas mundial.
+
+Primeramente vamos a recuperar estos datos del archivo.
+
+
+
+
+```{r}
+library(dplyr)
+library(psych)
+
+Dataset <- read.csv("datosOro.csv")
+
+#transformamos la variable date en un tipo Date
+
+Dataset$Date <- as.Date(as.character(Dataset$Date),format = "%Y%m%d")
+
+#en este caso, no nos interesa saber mínimos ni ningun tipo de información estadistica sobre Time ni Date
+
+describe(Dataset[,-c(1,2)])
+
+Dataset <- Dataset[,-2]
+
+
+```
+
+
+
+Como podemos ver, tenemos 7 columnas: Date: Indica el día sobre el que se muestra la información del resto de campos. Se puede observar que el primer registro empieza el 06/05/2003, llegando los registros hasta el 25/09/2023. También hay que tener en cuenta ciertos saltos de días, debido a que en fin de semana el mercado de FOREX se cierra y no se puede operar. Time: Es la hora de la que se muestra el resto de información. Como vemos, toda la información se recolecto sobre un solo día a una hora concreta, aunque se podia haber hecho con otro rango de tiempos, pero nosotros queremos medir el precio de cierre del día, por lo que necesitamos solo estos datos. Open: Precio de entrada del oro de dicho día medido en dólares High: Precio máximo del oro de dicho día medido en dólares Low: Precio mínimo del oro de dicho día medido en dólares Close: Esta será nuestra variable objetivo, ya que es lo que queremos predecir, el precio de cierre del día medido Volume: Número de lotes vendidos en el día, que en el caso del oro es de 100 onzas de oro por lote. (esta variable no creo que se pueda quitar por que es que es realmente la unica que afecta al precio del oro como tal)
+
+Como hemos visto, no tiene mucho sentido quedarnos con la columna time, ya que no operamos a nivel de horas ni tiempos inferiores, por lo que esta columna no aporta valor.
+
+
+
+
+```{r}
+
+library(Amelia)
+missmap(obj = Dataset, main = "Dataset Oro", legend = FALSE)
+
+
+```
+Según la imagen de arriba parece que no falte nada, pero es mentira, ya que en la fecha sabemos que el mercado cierra los fin de semanas.
+La siguiente cuestión a plantearnos es, realmente la columna de Low y High es correcta? es decir, viendo a posteriori los datos, si que es posible saber cual ha sido el máximo y cual es el mínimo del día, pero en el momento no, por lo que, lo más acertado sería desplazar los datos una fila hacia delante, ya que los datos conocidos son los del día anterior, y de esta forma estaríamos teniendo en cuenta en que valores fluctuó el oro anteriormente. (esto es un porro mio, no tiene por que ser correcto)
+
+
+
+```{r}
+
+
+library(gridExtra)
+library(ggplot2)
+t1 <- ggplot(data=Dataset, aes(x=Date,y=Open)) +
+geom_point() +
+geom_smooth(formula = y ~ x, method = "loess", color = 'red') +
+theme_minimal() +
+labs(title = "R1: Date - Open")
+t2 <- ggplot(data=Dataset, aes(x=Date,y=High)) +
+geom_point() +
+geom_smooth(formula = y ~ x, method = "loess", color = 'red') +
+theme_minimal() +
+labs(title = "R2: Date - High")
+t3 <- ggplot(data=Dataset, aes(x=Date,y=Low)) +
+geom_point() +
+geom_smooth(formula = y ~ x, method = "loess", color = 'red') +
+theme_minimal() +
+labs(title = "R3: Date - Low")
+t4 <- ggplot(data=Dataset, aes(x=Date,y=Close)) +
+geom_point() +
+geom_smooth(formula = y ~ x, method = "loess", color = 'red') +
+theme_minimal() +
+labs(title = "R4: Date - Close")
+t5 <- ggplot(data=Dataset, aes(x=Date,y=Volume)) +
+geom_point() +
+geom_smooth(formula = y ~ x, method = "loess", color = 'red') +
+theme_minimal() +
+labs(title = "R5: Date - Volume")
+
+grid.arrange(t1, t2, t3, t4, t5, ncol = 2)
+
+
+
+
+
+
+
+
+
+
+
+```
+Con estas imagenes podemos ver la tendencia alcista del mercado del oro. Vamos a ver si existe correlaciones entre las variables para poder determinar 
+
+
+
+```{r}
+library(corrplot)
+cor(Dataset[,-1])
+
+#como esto no se ve muy claro vamos a dibujarlo como una matriz mas bonita
+
+correlacion <- round(cor(Dataset[,-1]), 4) #redondeamos a 4 valores por que vemos que muchos son 0.999
+corrplot(correlacion, method="number", type="upper")
+
+```
+Como vemos existe una alta correlación entre todas las variables, lo cual es un mal signo, indicando que todas las variables representan lo mismo. Aunque quisiesemos eliminar las variables que generan correlación, no podemos hacerlo ya que también tienen mucha correlación con la variable objetivo (Close).
+
+Ahora vamos a hacer la serie temporal sobre nuestra variable objetivo (close). Para ello como tenemos registros de dias pondremos de frecuencia 365 aunque esto no es fiel al 100% ya que no tenemos registros de los fines de semana.
+
+```{r}
+
+
+
+close <- Dataset[,c(5)]
+close.ts = ts(close, start = 1, frequency = 365)
+
+plot(close.ts)
+
+
+
+```
+
+Para ver si debemos aplicar un arima o un sarima, debemos primeramente ver si cumple el test de Dickey-Fuller para ver si la serie es estacionaria o no
+
+
+
+```{r}
+library(tseries)
+adf.test(close.ts)
+
+par(mfrow=c(2,2), mar=c(4,4,4,1) + .1)
+acf(close.ts)
+pacf(close.ts)
+acf(ts(close.ts, frequency = 1))
+pacf(ts(close.ts, frequency = 1))
+
+
+```
+
+Como vemos no es estacionaria ya que el pvalue no es menor a 0.1 y también se puede observar como los datos se salen de los límites de las gráficas mostradas. Primeramente probaremos a realizar una diferencia para ver si conseguimos convertirla en estacionaria.
+
+
+
+```{r}
+library(forecast)
+
+dif1 <- diff(close.ts, differences = 1)
+adf.test(dif1)
+```
+
+Con una diferencia se convierte en estacionaria asi que se puede aplicar un sarima
+
+```{r}
+#aplicamos sarima
+```
+
+
+
+
+
