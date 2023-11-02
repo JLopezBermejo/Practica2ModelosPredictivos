@@ -118,7 +118,7 @@ Ahora vamos a hacer la serie temporal sobre nuestra variable objetivo (close). P
 
 
 close <- Dataset[,c(5)]
-close.ts = ts(close, start = 1, frequency = 365)
+close.ts = ts(close, start = 1, frequency = 7)
 
 plot(close.ts)
 
@@ -132,7 +132,7 @@ Para ver si debemos aplicar un arima o un sarima, debemos primeramente ver si cu
 
 ```{r}
 library(tseries)
-adf.test(close.ts)
+adf.test(close.ts, alternative = "stationary")
 
 par(mfrow=c(2,2), mar=c(4,4,4,1) + .1)
 acf(close.ts)
@@ -143,7 +143,34 @@ pacf(ts(close.ts, frequency = 1))
 
 ```
 
-Como vemos no es estacionaria ya que el pvalue no es menor a 0.1 y también se puede observar como los datos se salen de los límites de las gráficas mostradas. Primeramente probaremos a realizar una diferencia para ver si conseguimos convertirla en estacionaria.
+
+
+Como vemos no es estacionaria ya que el pvalue no es menor a 0.1 y también se puede observar como los datos se salen de los límites de las gráficas mostradas. Primeramente probaremos a aplicar unos logaritmos, por si no hiciese falta diferenciar. En caso contratrio, debemos realizar una diferencia para ver si conseguimos convertirla en estacionaria.
+
+
+
+Aplicamos unas correciones con logaritmos por si no hiciese falta corregir la no estacionaridad con diferencias
+
+```{r}
+
+serielogC = log(close.ts)
+
+plot(serielogC)
+par(mfrow=c(2,2), mar=c(4,4,4,1) + .1)
+acf(serielogC)
+pacf(serielogC)
+acf(ts(serielogC, frequency = 1))
+pacf(ts(serielogC, frequency = 1))
+
+
+
+adf.test(serielogC, alternative = "stationary")
+
+
+```
+
+
+Como vemos no se convierte en una serie estacionaria, por lo que toca diferenciar la serie.
 
 
 
@@ -154,13 +181,73 @@ dif1 <- diff(close.ts, differences = 1)
 adf.test(dif1)
 ```
 
-Con una diferencia se convierte en estacionaria asi que se puede aplicar un sarima
+
+
+
 
 ```{r}
-#aplicamos sarima
+library(plot3D)
+scatter3D(x=Dataset$Low,
+y=Dataset$High,
+z=Dataset$Close,
+colvar=Dataset$Close,
+clab = c("Close"),
+xlab="Low",
+ylab="High",
+zlab="Close")
 ```
 
 
+```{r}
+library(ggplot2)
+
+ggplot(data=Dataset,
+aes(x=Dataset$Date, y=Dataset$Close))+
+geom_point(colour = "red", size = .5)
+```
+
+
+
+
+Con una diferencia se convierte en estacionaria asi que se puede aplicar un sarima
+
+Aplicamos un autoarima para confirmar que solo hace falta una diferencia
+
+```{r}
+library(forecast)
+modelC=auto.arima(close.ts)
+modelC
+summary(modelC)
+
+```
+Como vemos aparece ARIMA(0,1,0), lo que indica que podemos hacer una diferencia y aplicar el SARIMA
+
+
+
+
+Vamos a comprobar el Ljung Box Test para ver la bondad del modelo creado con el autoarima
+
+```{r}
+
+Box.test(residuals(modelC), type = "Ljung-Box")
+error_modelT=residuals(modelC)
+plot(error_modelT)
+```
+El Ljung Box Test indica que no se rechaza la hipótesis nula por lo que los residuos de nuestro modelo de serie temporal son independientes
+
+
+
+
+Esto tiene que estar mal por que los ejes aparecen al reves
+```{r}
+library(astsa)
+Predict_TS <- astsa::sarima(close.ts, 0,1,0,0,0,1,7)
+sarima.for(close.ts, n.ahead = 7,0,1,0,0,0,1,7)
+
+
+```
+
+Esto tiene que estar mal por que los ejes aparecen al reves
 
 
 
