@@ -47,7 +47,7 @@ missmap(obj = Dataset, main = "Dataset Oro", legend = FALSE)
 
 ```
 Según la imagen de arriba parece que no falte nada, pero es mentira, ya que en la fecha sabemos que el mercado cierra los fin de semanas.
-La siguiente cuestión a plantearnos es, realmente la columna de Low y High es correcta? es decir, viendo a posteriori los datos, si que es posible saber cual ha sido el máximo y cual es el mínimo del día, pero en el momento no, por lo que, lo más acertado sería desplazar los datos una fila hacia delante, ya que los datos conocidos son los del día anterior, y de esta forma estaríamos teniendo en cuenta en que valores fluctuó el oro anteriormente. (esto es un porro mio, no tiene por que ser correcto)
+La siguiente cuestión a plantearnos es, ¿realmente la columna de Low y High es correcta? Es decir, viendo a posteriori los datos, si que es posible saber cual ha sido el máximo y cual es el mínimo del día, pero en el momento no, por lo que, lo más acertado sería desplazar los datos una fila hacia delante, ya que los datos conocidos son los del día anterior, y de esta forma estaríamos teniendo en cuenta en que valores fluctuó el oro anteriormente. 
 
 
 
@@ -95,7 +95,7 @@ grid.arrange(t1, t2, t3, t4, t5, ncol = 2)
 
 
 ```
-Con estas imagenes podemos ver la tendencia alcista del mercado del oro. Vamos a ver si existe correlaciones entre las variables para poder determinar 
+Con estas imagenes podemos ver la tendencia alcista del mercado del oro, vamos a ver si existe correlaciones entre las variables.
 
 
 
@@ -111,7 +111,7 @@ corrplot(correlacion, method="number", type="upper")
 ```
 Como vemos existe una alta correlación entre todas las variables, lo cual es un mal signo, indicando que todas las variables representan lo mismo. Aunque quisiesemos eliminar las variables que generan correlación, no podemos hacerlo ya que también tienen mucha correlación con la variable objetivo (Close).
 
-Ahora vamos a hacer la serie temporal sobre nuestra variable objetivo (close). Para ello como tenemos registros de dias pondremos de frecuencia 365 aunque esto no es fiel al 100% ya que no tenemos registros de los fines de semana.
+Ahora vamos a hacer la serie temporal sobre nuestra variable objetivo (close). Para ello como tenemos registros de dias pondremos de frecuencia 7 aunque esto no es fiel al 100% ya que no tenemos registros de los fines de semana.
 
 ```{r}
 
@@ -126,8 +126,7 @@ plot(close.ts)
 
 ```
 
-Para ver si debemos aplicar un arima o un sarima, debemos primeramente ver si cumple el test de Dickey-Fuller para ver si la serie es estacionaria o no
-
+Es necesario ver si la serie cumple el test de Dickey-Fuller para ver es estacionaria o no, ya que una serie no estacionaria puede introducir sesgos y dificultades en el análisis estadístico y la modelización, lo que puede afectar la calidad de las conclusiones y predicciones derivadas de dicha serie temporal.
 
 
 ```{r}
@@ -145,11 +144,10 @@ pacf(ts(close.ts, frequency = 1))
 
 
 
-Como vemos no es estacionaria ya que el pvalue no es menor a 0.1 y también se puede observar como los datos se salen de los límites de las gráficas mostradas. Primeramente probaremos a aplicar unos logaritmos, por si no hiciese falta diferenciar. En caso contratrio, debemos realizar una diferencia para ver si conseguimos convertirla en estacionaria.
+Como vemos no es estacionaria ya que el pvalue es mayor a 0.05 y por lo tanto no se puede descartar la hipótesis nula.
 
 
-
-Aplicamos unas correciones con logaritmos por si no hiciese falta corregir la no estacionaridad con diferencias
+Aplicamos a continuación una transformación logarítmica a los datos para tratar de convertir la serie en estacionaria.
 
 ```{r}
 
@@ -170,7 +168,7 @@ adf.test(serielogC, alternative = "stationary")
 ```
 
 
-Como vemos no se convierte en una serie estacionaria, por lo que toca diferenciar la serie.
+Como vemos, una vez más el p-valor sigue siendo mayor que el 0.05 por lo que es necesario diferenciar la serie.
 
 
 
@@ -181,8 +179,7 @@ dif1 <- diff(close.ts, differences = 1)
 adf.test(dif1)
 ```
 
-
-
+En eta ocasión el p-valor si que es menor a 0.05 por lo que se descarta la hipótesis nula y se puede considerar que la serie es estacionaria
 
 
 ```{r}
@@ -206,10 +203,6 @@ aes(x=Dataset$Date, y=Dataset$Close))+
 geom_point(colour = "red", size = .5)
 ```
 
-
-
-
-Con una diferencia se convierte en estacionaria asi que se puede aplicar un sarima
 
 Aplicamos un autoarima para confirmar que solo hace falta una diferencia
 
@@ -236,9 +229,6 @@ plot(error_modelT)
 El Ljung Box Test indica que no se rechaza la hipótesis nula por lo que los residuos de nuestro modelo de serie temporal son independientes
 
 
-
-
-Esto tiene que estar mal por que los ejes aparecen al reves
 ```{r}
 library(astsa)
 Predict_TS <- astsa::sarima(close.ts, 0,1,0,0,0,1,7)
@@ -247,7 +237,6 @@ sarima.for(close.ts, n.ahead = 7,0,1,0,0,0,1,7)
 
 ```
 
-Esto tiene que estar mal por que los ejes aparecen al reves
 
 
 
