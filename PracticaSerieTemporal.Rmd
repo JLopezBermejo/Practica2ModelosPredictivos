@@ -83,17 +83,6 @@ theme_minimal() +
 labs(title = "R5: Date - Volume")
 
 grid.arrange(t1, t2, t3, t4, t5, ncol = 2)
-
-
-
-
-
-
-
-
-
-
-
 ```
 Con estas imagenes podemos ver la tendencia alcista del mercado del oro, vamos a ver si existe correlaciones entre las variables.
 
@@ -118,9 +107,9 @@ Ahora vamos a hacer la serie temporal sobre nuestra variable objetivo (close). P
 
 
 close <- Dataset[,c(5)]
-close.ts = ts(close, start = 1, frequency = 7)
+close.ts = ts(close, start = 1, frequency = 5)
 
-plot(close.ts)
+plot(tail(close.ts, 70))
 
 
 
@@ -199,7 +188,7 @@ zlab="Close")
 library(ggplot2)
 
 ggplot(data=Dataset,
-aes(x=Dataset$Date, y=Dataset$Close))+
+aes(x=Date, y=Close))+
 geom_point(colour = "red", size = .5)
 ```
 
@@ -230,11 +219,8 @@ El Ljung Box Test indica que no se rechaza la hipótesis nula por lo que los res
 
 
 ```{r}
-library(astsa)
-Predict_TS <- astsa::sarima(close.ts, 0,1,0,0,0,1,7)
-sarima.for(close.ts, n.ahead = 7,0,1,0,0,0,1,7)
-
-
+arima_model <- sarima(close.ts, p = 0, d = 1, q = 0)
+sarima.for(close.ts, n.ahead=5, 0,1,0)
 ```
 
 
