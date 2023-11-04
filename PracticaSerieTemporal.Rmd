@@ -1,15 +1,12 @@
-
-
-
-
-Practica Modelos Predictivos: Series Temporales aplicadas al precio de cierre del oro
+# Practica Modelos Predictivos: Series Temporales aplicadas al precio de cierre del oro
 
 En esta práctica se intentará predecir el precio de cierre del oro de los siguientes días. Para ello hemos recogido en un archivo llamado datosOro.csv los datos del oro por días, desde 2003 hasta el último trimestre de 2023. Los datos han sido extraidos directamente del FOREX, mercado de divisas mundial.
 
-Primeramente vamos a recuperar estos datos del archivo.
+## Descripción de los datos
 
+Como podemos ver, tenemos 7 columnas: Date: Indica el día sobre el que se muestra la información del resto de campos. Se puede observar que el primer registro empieza el 06/05/2003, llegando los registros hasta el 25/09/2023. También hay que tener en cuenta ciertos saltos de días, debido a que en fin de semana el mercado de FOREX se cierra y no se puede operar. Time: Es la hora de la que se muestra el resto de información. Como vemos, toda la información se recolecto sobre un solo día a una hora concreta, aunque se podia haber hecho con otro rango de tiempos, pero nosotros queremos medir el precio de cierre del día, por lo que necesitamos solo estos datos. Open: Precio de entrada del oro de dicho día medido en dólares High: Precio máximo del oro de dicho día medido en dólares Low: Precio mínimo del oro de dicho día medido en dólares Close: Esta será nuestra variable objetivo, ya que es lo que queremos predecir, el precio de cierre del día medido Volume: Número de lotes vendidos en el día, que en el caso del oro es de 100 onzas de oro por lote.
 
-
+Como hemos visto, no tiene mucho sentido quedarnos con la columna time, ya que no operamos a nivel de horas ni tiempos inferiores, por lo que esta columna no aporta valor.
 
 ```{r}
 library(dplyr)
@@ -21,6 +18,10 @@ Dataset <- read.csv("datosOro.csv")
 
 Dataset$Date <- as.Date(as.character(Dataset$Date),format = "%Y%m%d")
 
+# Imprimimos los 10 primeros y los 10 últimos valores 
+print(head(Dataset,10))
+print(tail(Dataset,10))
+
 #en este caso, no nos interesa saber mínimos ni ningun tipo de información estadistica sobre Time ni Date
 
 describe(Dataset[,-c(1,2)])
@@ -30,14 +31,9 @@ Dataset <- Dataset[,-2]
 
 ```
 
+## MissMap
 
-
-Como podemos ver, tenemos 7 columnas: Date: Indica el día sobre el que se muestra la información del resto de campos. Se puede observar que el primer registro empieza el 06/05/2003, llegando los registros hasta el 25/09/2023. También hay que tener en cuenta ciertos saltos de días, debido a que en fin de semana el mercado de FOREX se cierra y no se puede operar. Time: Es la hora de la que se muestra el resto de información. Como vemos, toda la información se recolecto sobre un solo día a una hora concreta, aunque se podia haber hecho con otro rango de tiempos, pero nosotros queremos medir el precio de cierre del día, por lo que necesitamos solo estos datos. Open: Precio de entrada del oro de dicho día medido en dólares High: Precio máximo del oro de dicho día medido en dólares Low: Precio mínimo del oro de dicho día medido en dólares Close: Esta será nuestra variable objetivo, ya que es lo que queremos predecir, el precio de cierre del día medido Volume: Número de lotes vendidos en el día, que en el caso del oro es de 100 onzas de oro por lote. (esta variable no creo que se pueda quitar por que es que es realmente la unica que afecta al precio del oro como tal)
-
-Como hemos visto, no tiene mucho sentido quedarnos con la columna time, ya que no operamos a nivel de horas ni tiempos inferiores, por lo que esta columna no aporta valor.
-
-
-
+Según la imagen parece que no falte nada, pero es mentira, ya que en la fecha sabemos que el mercado cierra los fin de semanas. Sin embargo, para nuestro caso de estudio no nos importa esto ya que con considerar una semana de 5 días en vez de 7 sería suficiente. Por lo que aunque técnicamente falten datos, podemos asumir que están todos los datos.
 
 ```{r}
 
@@ -46,10 +42,10 @@ missmap(obj = Dataset, main = "Dataset Oro", legend = FALSE)
 
 
 ```
-Según la imagen de arriba parece que no falte nada, pero es mentira, ya que en la fecha sabemos que el mercado cierra los fin de semanas.
-La siguiente cuestión a plantearnos es, ¿realmente la columna de Low y High es correcta? Es decir, viendo a posteriori los datos, si que es posible saber cual ha sido el máximo y cual es el mínimo del día, pero en el momento no, por lo que, lo más acertado sería desplazar los datos una fila hacia delante, ya que los datos conocidos son los del día anterior, y de esta forma estaríamos teniendo en cuenta en que valores fluctuó el oro anteriormente. 
 
+## Tendencias
 
+Con estas imagenes podemos ver la tendencia alcista del mercado del oro.
 
 ```{r}
 
@@ -84,9 +80,12 @@ labs(title = "R5: Date - Volume")
 
 grid.arrange(t1, t2, t3, t4, t5, ncol = 2)
 ```
-Con estas imagenes podemos ver la tendencia alcista del mercado del oro, vamos a ver si existe correlaciones entre las variables.
 
+## Correlación entre variables
 
+Como vemos existe una alta correlación entre todas las variables, lo cual es un mal signo, indicando que todas las variables representan lo mismo.
+
+Ahora vamos a hacer la serie temporal sobre nuestra variable objetivo (close). Para ello como tenemos registros de dias pondremos de frecuencia 5 ya que consideraremos que los sábados y domingos no existen haciendo que del viernes se vuelva al lunes.
 
 ```{r}
 library(corrplot)
@@ -98,102 +97,69 @@ correlacion <- round(cor(Dataset[,-1]), 4) #redondeamos a 4 valores por que vemo
 corrplot(correlacion, method="number", type="upper")
 
 ```
-Como vemos existe una alta correlación entre todas las variables, lo cual es un mal signo, indicando que todas las variables representan lo mismo. Aunque quisiesemos eliminar las variables que generan correlación, no podemos hacerlo ya que también tienen mucha correlación con la variable objetivo (Close).
 
-Ahora vamos a hacer la serie temporal sobre nuestra variable objetivo (close). Para ello como tenemos registros de dias pondremos de frecuencia 7 aunque esto no es fiel al 100% ya que no tenemos registros de los fines de semana.
+## Conversión a serie temporal
+
+Convertimos la variable objetivo "Close" en una serie temporal
 
 ```{r}
-
-
-
 close <- Dataset[,c(5)]
-close.ts = ts(close, start = 1, frequency = 5)
-
-plot(tail(close.ts, 70))
-
-
-
+close.ts = ts(close, start = 0, frequency = 5)
 ```
+
+## Test de Dickey-Fuller
 
 Es necesario ver si la serie cumple el test de Dickey-Fuller para ver es estacionaria o no, ya que una serie no estacionaria puede introducir sesgos y dificultades en el análisis estadístico y la modelización, lo que puede afectar la calidad de las conclusiones y predicciones derivadas de dicha serie temporal.
 
-
-```{r}
-library(tseries)
-adf.test(close.ts, alternative = "stationary")
-
-par(mfrow=c(2,2), mar=c(4,4,4,1) + .1)
-acf(close.ts)
-pacf(close.ts)
-acf(ts(close.ts, frequency = 1))
-pacf(ts(close.ts, frequency = 1))
-
-
-```
-
-
+### Datos "vanilla"
 
 Como vemos no es estacionaria ya que el pvalue es mayor a 0.05 y por lo tanto no se puede descartar la hipótesis nula.
 
-
-Aplicamos a continuación una transformación logarítmica a los datos para tratar de convertir la serie en estacionaria.
-
 ```{r}
-
-serielogC = log(close.ts)
-
-plot(serielogC)
-par(mfrow=c(2,2), mar=c(4,4,4,1) + .1)
-acf(serielogC)
-pacf(serielogC)
-acf(ts(serielogC, frequency = 1))
-pacf(ts(serielogC, frequency = 1))
-
-
-
-adf.test(serielogC, alternative = "stationary")
-
-
+library(tseries)
+plot(tail(close.ts, 200))
+adf.test(close.ts, alternative = "stationary")
 ```
 
+### Datos con transformación logarítmica
 
-Como vemos, una vez más el p-valor sigue siendo mayor que el 0.05 por lo que es necesario diferenciar la serie.
-
-
+Aplicamos a continuación una transformación logarítmica a los datos para tratar de convertir la serie en estacionaria. Como vemos, una vez más el p-valor sigue siendo mayor que el 0.05 por lo que es necesario diferenciar la serie.
 
 ```{r}
-library(forecast)
+serielogC <- log(close.ts)
+plot(tail(serielogC,200))
+adf.test(serielogC, alternative = "stationary")
+```
 
+### Datos diferenciados
+
+En esta ocasión el p-valor si que es menor a 0.05 por lo que se descarta la hipótesis nula y se puede considerar que la serie es estacionaria.
+
+```{r}
 dif1 <- diff(close.ts, differences = 1)
+plot(tail(dif1,200))
 adf.test(dif1)
 ```
 
-En eta ocasión el p-valor si que es menor a 0.05 por lo que se descarta la hipótesis nula y se puede considerar que la serie es estacionaria
+## Modelo
 
+En primer lugar debemos analizar las funciones de autocorrelación y de autocorrelación parcial.
 
-```{r}
-library(plot3D)
-scatter3D(x=Dataset$Low,
-y=Dataset$High,
-z=Dataset$Close,
-colvar=Dataset$Close,
-clab = c("Close"),
-xlab="Low",
-ylab="High",
-zlab="Close")
-```
+Para hallar el valor de p nos fijamos en la función de autocorrelación parcial y comprobamos que hay 3 retardos que se se escapan de las franjas azules, es decir, que hay 3 retardos significativos, sin embargo, al ver que no decae la función se puede asumir que si se pusieran más retardos habría más por lo que se podría considerar que existe una estructura y por lo tanto **p = 0**.
 
+Para el valor de q nos fijamos en la función de autocorrelación y vemos que aparte del primer retardo (que siempre tendrá valor 1 por lo que no se debe tener en cuenta) no existe ningún retardo significativo, por lo que **q = 0**.
+
+Al haber diferenciado una única vez sabemos que **d = 1**,nos encontramos ante un modelo **ARIMA (0,1,0)** que podemos comprobar utilizando la función auto-arima que nos devuelve la siguiente información:
 
 ```{r}
-library(ggplot2)
-
-ggplot(data=Dataset,
-aes(x=Date, y=Close))+
-geom_point(colour = "red", size = .5)
+par(mfrow=c(2,2), mar=c(4,4,4,1) + .1)
+acf(dif1)
+pacf(dif1)
+acf(ts(dif1, frequency = 1))
+pacf(ts(dif1, frequency = 1))
 ```
 
-
-Aplicamos un autoarima para confirmar que solo hace falta una diferencia
+Aplicamos un autoarima para confirmar que el modelo es ARIMA(0,1,0)
 
 ```{r}
 library(forecast)
@@ -202,12 +168,10 @@ modelC
 summary(modelC)
 
 ```
-Como vemos aparece ARIMA(0,1,0), lo que indica que podemos hacer una diferencia y aplicar el SARIMA
 
+## Resultados
 
-
-
-Vamos a comprobar el Ljung Box Test para ver la bondad del modelo creado con el autoarima
+Vamos a comprobar el Ljung Box Test para ver la bondad del modelo creado. El Ljung Box Test indica que no se rechaza la hipótesis nula por lo que los datos siguen una distribución de ruido blanco y el modelo no es fiable a la hora de realizar predicciones.
 
 ```{r}
 
@@ -215,14 +179,11 @@ Box.test(residuals(modelC), type = "Ljung-Box")
 error_modelT=residuals(modelC)
 plot(error_modelT)
 ```
-El Ljung Box Test indica que no se rechaza la hipótesis nula por lo que los residuos de nuestro modelo de serie temporal son independientes
 
+De todas formas realizaremos la predicción de los 20 próximos días.
 
 ```{r}
+library(astsa)
 arima_model <- sarima(close.ts, p = 0, d = 1, q = 0)
-sarima.for(close.ts, n.ahead=5, 0,1,0)
+result <- sarima.for(close.ts, n.ahead=20, 0,1,0)
 ```
-
-
-
-
