@@ -181,7 +181,7 @@ error_modelT=residuals(modelC)
 plot(error_modelT)
 ```
 
-Aunque el auto.arima indique que se tiene que realizar un Arima, nosotros sabemos gracias al p-valor de la hipótesis nula de estacionariedad que se puede aplicar un sarima a nuestra serie diferenciada.
+Gracias al auto-arima, sabemos los valores que debemos incluir a la hora de crear el modelo ARIMA.
 
 ```{r}
 library(astsa)
@@ -194,18 +194,11 @@ print(result$pred)
 
 ```
 
-#Predicciones con el modelo creado con el auto.arima
 
-```{r}
-predictC <- forecast::forecast(modelC, h = 28) 
-predictC
-plot(predictC)
-```
-Se puede observar como los datos son iguales a los predichos con el auto.arima, pudiendo indicar que el auto.arima realmente crease un sarima con 1 diferencia.
 
 #Bondad de los ajustes
 
-En este caso, tenemos los dos modelos, y comparamos cual es mejor para nuestro problema. No hemos separado los datos en test training y validation, ya que el valor de cierre del oro de un día se puede buscar públicamente, por lo que los datos a comparar son los de los días siguientes del mercado. Los días a probar serán del 26/09/2023 al 03/11/2023
+Ahora realizaremos un estudio sobre cómo de bueno es el modelo. No hemos separado los datos en test training y validation, ya que el valor de cierre del oro de un día se puede buscar públicamente, por lo que los datos a comparar son los de los días siguientes del mercado. Los días a probar serán del 26/09/2023 al 03/11/2023
 
 ```{r}
 
@@ -216,18 +209,13 @@ datos_reales_close = c(1875.2,1864.9,1848.6,1828.0,1822.9,1821.3,1820.2,1832.9,1
 
 plot(datos_reales_close)
 plot(result$pred)
-plot(predictC$mean)
 
 print("RMSE y MSE con el modelo de sarima")
 rmse(datos_reales_close, c(result$pred))
 mean((datos_reales_close - result$pred)^2)
 
-print("RMSE y MSE con el modelo de auto.arima")
-
-rmse(datos_reales_close, c(predictC$mean))
-mean((datos_reales_close - predictC$mean)^2)
 ```
-Como vemos las dos medidas son exactamente iguales, no siendo una bondad realmente buena. Esto se puede observar en las gráficas, viendo como la gráfica real tiene momentos en los que bajo el valor del oro, y picos donde subió el valor bastante, mientras en las gráficas predichas se ve una subida constante, no siendo fiel a la realidad.
+Como vemos, las medidas son bastante altas, no siendo una bondad realmente buena. Esto se puede observar en las gráficas, viendo como la gráfica real tiene momentos en los que bajo el valor del oro, y picos donde subió el valor bastante, mientras en la gráfica de las predicciones se ve una subida constante, no siendo fiel a la realidad.
 
 
 
