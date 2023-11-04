@@ -85,8 +85,6 @@ grid.arrange(t1, t2, t3, t4, t5, ncol = 2)
 
 Como vemos existe una alta correlación entre todas las variables, lo cual es un mal signo, indicando que todas las variables representan lo mismo.
 
-Ahora vamos a hacer la serie temporal sobre nuestra variable objetivo (close). Para ello como tenemos registros de dias pondremos de frecuencia 5 ya que consideraremos que los sábados y domingos no existen haciendo que del viernes se vuelva al lunes.
-
 ```{r}
 library(corrplot)
 cor(Dataset[,-1])
@@ -100,7 +98,7 @@ corrplot(correlacion, method="number", type="upper")
 
 ## Conversión a serie temporal
 
-Convertimos la variable objetivo "Close" en una serie temporal
+Ahora vamos a hacer la serie temporal sobre nuestra variable objetivo (close). Para ello como tenemos registros de dias pondremos de frecuencia 5 ya que consideraremos que los sábados y domingos no existen haciendo que del viernes se vuelva al lunes.
 
 ```{r}
 close <- Dataset[,c(5)]
@@ -160,7 +158,7 @@ acf(ts(dif1, frequency = 1))
 pacf(ts(dif1, frequency = 1))
 ```
 
-Aplicamos un autoarima para confirmar que el modelo es ARIMA(0,1,0)
+Aplicamos un autoarima para confirmar que el modelo es ARIMA(0,1,0) y nos devuelve que efectivamente se trata de un ARIMA(0,1,0) 'with drift', esto nos indica que se trata de un modelo que realiza una media de los valores anteriores y realiza un ajuste constante a esta.
 
 ```{r}
 library(forecast)
@@ -172,16 +170,15 @@ summary(modelC)
 
 ## Resultados
 
-Vamos a comprobar el Ljung Box Test para ver la bondad del modelo creado. El Ljung Box Test indica que no se rechaza la hipótesis nula por lo que los datos son independientes entre ellos.
+Vamos a comprobar el Ljung Box Test para ver la bondad del modelo creado. El Ljung Box Test indica que no se rechaza la hipótesis nula por lo que los datos siguen una estructura de ruido blanco y por lo tanto no pueden ser predichos de forma adecuada con el modelo.
 
 ```{r}
-
 Box.test(residuals(modelC), type = "Ljung-Box")
 error_modelT=residuals(modelC)
 plot(error_modelT)
 ```
 
-Gracias al auto-arima, sabemos los valores que debemos incluir a la hora de crear el modelo ARIMA.
+De todas formas realizaremos la predicción de los 28 próximos días.
 
 ```{r}
 library(astsa)
@@ -194,15 +191,13 @@ print(result$pred)
 
 ```
 
+# Bondad de los ajustes
 
+Ahora realizaremos un estudio sobre cómo de bueno es el modelo. No hemos separado los datos en test training y validation, ya que el valor de cierre del oro de un día se puede buscar públicamente, por lo que los datos a comparar son los de los días siguientes del mercado. Los días a probar serán del 26/09/2023 al 03/11/2023.
 
-#Bondad de los ajustes
-
-Ahora realizaremos un estudio sobre cómo de bueno es el modelo. No hemos separado los datos en test training y validation, ya que el valor de cierre del oro de un día se puede buscar públicamente, por lo que los datos a comparar son los de los días siguientes del mercado. Los días a probar serán del 26/09/2023 al 03/11/2023
+Como vemos, las medidas son bastante altas, no siendo una bondad realmente buena. Esto se puede observar en las gráficas, viendo como la gráfica real tiene momentos en los que bajo el valor del oro, y picos donde subió el valor bastante, mientras en la gráfica de las predicciones se ve una subida constante, no siendo fiel a la realidad.
 
 ```{r}
-
-
 library("Metrics")
 
 datos_reales_close = c(1875.2,1864.9,1848.6,1828.0,1822.9,1821.3,1820.2,1832.9,1861.5,1860.4,1874.4,1868.9,1932.6,1920.1,1923.1,1947.7,1974.4,1997.2,1972.9,1971.1,1979.7,1984.7,2006.4,1996.1,1983.8,1982.6,1985.8,1992.6)
@@ -210,12 +205,8 @@ datos_reales_close = c(1875.2,1864.9,1848.6,1828.0,1822.9,1821.3,1820.2,1832.9,1
 plot(datos_reales_close)
 plot(result$pred)
 
-print("RMSE y MSE con el modelo de sarima")
+print("RMSE y MSE")
 rmse(datos_reales_close, c(result$pred))
 mean((datos_reales_close - result$pred)^2)
 
 ```
-Como vemos, las medidas son bastante altas, no siendo una bondad realmente buena. Esto se puede observar en las gráficas, viendo como la gráfica real tiene momentos en los que bajo el valor del oro, y picos donde subió el valor bastante, mientras en la gráfica de las predicciones se ve una subida constante, no siendo fiel a la realidad.
-
-
-
