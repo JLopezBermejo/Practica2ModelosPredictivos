@@ -104,14 +104,15 @@ Convertimos la variable objetivo "Close" en una serie temporal
 
 ```{r}
 close <- Dataset[,c(5)]
-close.ts = ts(close, start = 0, frequency = 5)
+close.ts = ts(close, start = as.Date("2003-05-06"), frequency = 5)
+
 ```
 
 ## Test de Dickey-Fuller
 
 Es necesario ver si la serie cumple el test de Dickey-Fuller para ver es estacionaria o no, ya que una serie no estacionaria puede introducir sesgos y dificultades en el análisis estadístico y la modelización, lo que puede afectar la calidad de las conclusiones y predicciones derivadas de dicha serie temporal.
 
-### Datos "vanilla"
+### Datos sin procesamiento
 
 Como vemos no es estacionaria ya que el pvalue es mayor a 0.05 y por lo tanto no se puede descartar la hipótesis nula.
 
@@ -171,7 +172,7 @@ summary(modelC)
 
 ## Resultados
 
-Vamos a comprobar el Ljung Box Test para ver la bondad del modelo creado. El Ljung Box Test indica que no se rechaza la hipótesis nula por lo que los datos siguen una distribución de ruido blanco y el modelo no es fiable a la hora de realizar predicciones.
+Vamos a comprobar el Ljung Box Test para ver la bondad del modelo creado. El Ljung Box Test indica que no se rechaza la hipótesis nula por lo que los datos son independientes entre ellos.
 
 ```{r}
 
@@ -180,10 +181,53 @@ error_modelT=residuals(modelC)
 plot(error_modelT)
 ```
 
-De todas formas realizaremos la predicción de los 20 próximos días.
+Aunque el auto.arima indique que se tiene que realizar un Arima, nosotros sabemos gracias al p-valor de la hipótesis nula de estacionariedad que se puede aplicar un sarima a nuestra serie diferenciada.
 
 ```{r}
 library(astsa)
-arima_model <- sarima(close.ts, p = 0, d = 1, q = 0)
-result <- sarima.for(close.ts, n.ahead=20, 0,1,0)
+sarima_model <- sarima(close.ts, p = 0, d = 1, q = 0)
+result <- sarima.for(close.ts, n.ahead=28, 0,1,0)
+
+
+print("Predicciones:")
+print(result$pred)
+
 ```
+
+#Predicciones con el modelo creado con el auto.arima
+
+```{r}
+predictC <- forecast::forecast(modelC, h = 28) 
+predictC
+plot(predictC)
+```
+Se puede observar como los datos son iguales a los predichos con el auto.arima, pudiendo indicar que el auto.arima realmente crease un sarima con 1 diferencia.
+
+#Bondad de los ajustes
+
+En este caso, tenemos los dos modelos, y comparamos cual es mejor para nuestro problema. No hemos separado los datos en test training y validation, ya que el valor de cierre del oro de un día se puede buscar públicamente, por lo que los datos a comparar son los de los días siguientes del mercado. Los días a probar serán del 26/09/2023 al 03/11/2023
+
+```{r}
+
+
+library("Metrics")
+
+datos_reales_close = c(1875.2,1864.9,1848.6,1828.0,1822.9,1821.3,1820.2,1832.9,1861.5,1860.4,1874.4,1868.9,1932.6,1920.1,1923.1,1947.7,1974.4,1997.2,1972.9,1971.1,1979.7,1984.7,2006.4,1996.1,1983.8,1982.6,1985.8,1992.6)
+
+plot(datos_reales_close)
+plot(result$pred)
+plot(predictC$mean)
+
+print("RMSE y MSE con el modelo de sarima")
+rmse(datos_reales_close, c(result$pred))
+mean((datos_reales_close - result$pred)^2)
+
+print("RMSE y MSE con el modelo de auto.arima")
+
+rmse(datos_reales_close, c(predictC$mean))
+mean((datos_reales_close - predictC$mean)^2)
+```
+Como vemos las dos medidas son exactamente iguales, no siendo una bondad realmente buena. Esto se puede observar en las gráficas, viendo como la gráfica real tiene momentos en los que bajo el valor del oro, y picos donde subió el valor bastante, mientras en las gráficas predichas se ve una subida constante, no siendo fiel a la realidad.
+
+
+
